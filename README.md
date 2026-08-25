@@ -1,6 +1,6 @@
-# Rust SSE Benchmark
+# Rust SSE Client Benchmark
 
-Server-Sent Events protocol impls comparison. No correctness checks, just performance.
+Server-Sent Events protocol client-side impls comparison. No correctness checks, just performance.
 
 Analyzed crates:
 
@@ -14,7 +14,7 @@ Analyzed crates:
 
 ## Setup
 
-Because many crates strictly depends on `reqwest`, benchmark requires SSE-stub running on `localhost:8080`. Benchmark consumes 100 events from stub in one iteration.
+Because many crates strictly depend on `reqwest`, benchmark requires SSE-stub running on `localhost:8080`. Benchmark consumes 100 events from stub in one iteration. Stub runs using `cargo run --release`.
 
 Each test differs from each other by content of message. There are 4 modes:
 
