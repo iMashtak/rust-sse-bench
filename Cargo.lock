@@ -3401,7 +3401,6 @@ dependencies = [
  "futures-util",
  "launchdarkly-sdk-transport",
  "rama",
- "rama-http-types",
  "reqwest 0.12.28",
  "reqwest 0.13.4",
  "reqwest-eventsource",

@@ -135,6 +135,23 @@ async fn trillium(client: &trillium_client::Client) {
     }
 }
 
+async fn rama<C>(client: &C)
+where
+    C: rama::Service<rama::http::Request, Output = rama::http::Response<rama::http::Body>>,
+    C::Error: Into<rama::error::BoxError>,
+{
+    let response = client.get("http://localhost:8080").send().await.unwrap();
+    let mut stream = response.into_body().into_event_stream::<String>();
+    let mut count = 0;
+    while let Some(event) = stream.next().await {
+        event.unwrap();
+        count += 1;
+        if count == 100 {
+            break;
+        }
+    }
+}
+
 fn b(c: &mut Criterion) {
     let mut group = c.benchmark_group("sse-impls");
 
@@ -192,25 +209,18 @@ fn b(c: &mut Criterion) {
             .iter(|| trillium(black_box(&client)))
     });
 
-    let client = rama::http::client::EasyHttpWebClient::default();
+    let client = rama::http::client::EasyHttpWebClient::connector_builder()
+        .with_default_transport_connector()
+        .with_default_dns_connector()
+        .without_tls_proxy_support()
+        .with_proxy_support()
+        .without_tls_support()
+        .with_default_http_connector(rama::rt::Executor::default())
+        .without_connection_pool()
+        .build_client();
     group.bench_function("rama", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| async {
-                let rs = client
-                    .get("http://localhost:8080")
-                    .send()
-                    .await
-                    .unwrap();
-                let mut stream = rs.into_body().into_event_stream::<String>();
-                let mut count = 0;
-                while let Some(event) = stream.next().await {
-                    event.unwrap();
-                    count += 1;
-                    if count == 100 {
-                        break;
-                    }
-                }
-            })
+            .iter(|| rama(black_box(&client)))
     });
 }
 
