@@ -29,6 +29,13 @@ sseer = { version = "0.3.0", features = ["reqwest"] }
 
 eventsource-stream2 = "*"
 
+trillium = "*"
+trillium-client = { version = "*", features = ["sse"] }
+trillium-tokio = "*"
+
+rama = { version = "=0.4.0", features = ["http-full"] }
+rama-http-types = "*"
+
 [[bench]]
 name = "comparison"
 harness = false

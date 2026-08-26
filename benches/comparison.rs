@@ -4,6 +4,7 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use eventsource_client::{Client, ClientBuilder};
 use eventsource_stream2::Eventsource;
 use launchdarkly_sdk_transport::HyperTransport;
+use rama::http::service::client::HttpClientExt;
 use reqwest_eventsource::EventSource;
 use reqwest_sse::EventSource as _;
 use sse_reqwest_client::{RequestBuilderExt, SseRetryConfig};
@@ -121,6 +122,19 @@ async fn eventsource_stream2(client: &reqwest::Client) {
     }
 }
 
+async fn trillium(client: &trillium_client::Client) {
+    let conn = client.get("http://localhost:8080");
+    let mut stream = conn.into_sse().await.unwrap();
+    let mut count = 0;
+    while let Some(event) = stream.next().await {
+        event.unwrap();
+        count += 1;
+        if count == 100 {
+            break;
+        }
+    }
+}
+
 fn b(c: &mut Criterion) {
     let mut group = c.benchmark_group("sse-impls");
 
@@ -167,6 +181,36 @@ fn b(c: &mut Criterion) {
     group.bench_function("eventsource-stream2", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
             .iter(|| eventsource_stream2(black_box(&client)))
+    });
+
+    let context = trillium::HttpContext::new()
+        .with_config(trillium::HttpConfig::default().with_received_body_max_len(u64::MAX));
+    let client =
+        trillium_client::Client::new(trillium_tokio::ClientConfig::default()).with_context(context);
+    group.bench_function("trillium", |b| {
+        b.to_async(tokio::runtime::Runtime::new().unwrap())
+            .iter(|| trillium(black_box(&client)))
+    });
+
+    let client = rama::http::client::EasyHttpWebClient::default();
+    group.bench_function("rama", |b| {
+        b.to_async(tokio::runtime::Runtime::new().unwrap())
+            .iter(|| async {
+                let rs = client
+                    .get("http://localhost:8080")
+                    .send()
+                    .await
+                    .unwrap();
+                let mut stream = rs.into_body().into_event_stream::<String>();
+                let mut count = 0;
+                while let Some(event) = stream.next().await {
+                    event.unwrap();
+                    count += 1;
+                    if count == 100 {
+                        break;
+                    }
+                }
+            })
     });
 }
 
